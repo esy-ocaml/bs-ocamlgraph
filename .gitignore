@@ -27,3 +27,6 @@
 /view_graph/viewgraph.opt
 /export
 graph.cmo
+/node_modules
+/lib/bs
+/lib/js

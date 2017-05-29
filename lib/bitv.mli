@@ -150,7 +150,7 @@ val all_ones  : t -> bool
 (*s {\bf Conversions to and from strings.}
     Least significant bit comes first. *)
 
-val to_string : t -> string
+val to_string : t -> bytes
 val of_string : string -> t
 val print : Format.formatter -> t -> unit
 

@@ -1,0 +1,11 @@
+{
+  "name": "bs-ocamlgraph",
+  "version": "1.8.7",
+  "description": "= OCamlgraph",
+  "devDependencies": {
+    "bs-platform": "^1.7.4"
+  },
+  "scripts": {
+    "postinstall": "autoconf && ./configure && make src/version.ml src/dot_parser.ml src/dot_parser.mli src/dot_lexer.ml src/gml.ml"
+  }
+}

@@ -194,7 +194,7 @@ module Johnson
     (W: WJ with type edge = G.E.t) =
 struct
 
-  module HVV = Hashtbl.Make(Util.HTProduct(G.V)(G.V))
+  module HVV = Hashtbl.Make(Ocamlgraph_util.HTProduct(G.V)(G.V))
 
   module G' = struct
     type t = G.t
@@ -313,7 +313,7 @@ module Check
 struct
 
   module HV = Hashtbl.Make(G.V)
-  module HVV = Hashtbl.Make(Util.HTProduct(G.V)(G.V))
+  module HVV = Hashtbl.Make(Ocamlgraph_util.HTProduct(G.V)(G.V))
 
   (* the cache contains the path tests already computed *)
   type path_checker = { cache : bool HVV.t; graph : G.t }

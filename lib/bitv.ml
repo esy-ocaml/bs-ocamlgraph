@@ -172,7 +172,7 @@ let blit_int a v n =
   else begin
     Array.unsafe_set v i
       ( (keep_lowest_bits (Array.unsafe_get v i) j) lor
-       ((keep_lowest_bits a (bpi - j)) lsl j));
+        ((keep_lowest_bits a (bpi - j)) lsl j));
     Array.unsafe_set v (succ i)
       ((keep_highest_bits (Array.unsafe_get v (succ i)) (bpi - j)) lor
        (a lsr (bpi - j)))
@@ -203,7 +203,7 @@ let unsafe_blit v1 ofs1 v2 ofs2 len =
 
 let blit v1 ofs1 v2 ofs2 len =
   if len < 0 || ofs1 < 0 || ofs1 + len > v1.length
-             || ofs2 < 0 || ofs2 + len > v2.length
+     || ofs2 < 0 || ofs2 + len > v2.length
   then invalid_arg "Bitv.blit";
   unsafe_blit v1.bits ofs1 v2.bits ofs2 len
 
@@ -449,13 +449,13 @@ let all_ones v =
 
 let to_string v =
   let n = v.length in
-  let s = String.make n '0' in
+  let s = Bytes.make n '0' in
   for i = 0 to n - 1 do
     if unsafe_get v i then s.[i] <- '1'
   done;
   s
 
-let print fmt v = Format.pp_print_string fmt (to_string v)
+let print fmt v = Format.pp_print_string fmt (Bytes.to_string (to_string v))
 
 let of_string s =
   let n = String.length s in
@@ -465,7 +465,7 @@ let of_string s =
     if c = '1' then
       unsafe_set v i true
     else
-      if c <> '0' then invalid_arg "Bitv.of_string"
+    if c <> '0' then invalid_arg "Bitv.of_string"
   done;
   v
 
@@ -550,12 +550,12 @@ let of_int32_us i = match Sys.word_size with
 let to_int32_us v =
   if v.length < 31 then invalid_arg "Bitv.to_int32_us";
   match Sys.word_size with
-    | 32 ->
-        Int32.logor (Int32.of_int v.bits.(0))
-                    (Int32.shift_left (Int32.of_int (v.bits.(1) land 1)) 30)
-    | 64 ->
-        Int32.of_int (v.bits.(0) land 0x7fffffff)
-    | _ -> assert false
+  | 32 ->
+    Int32.logor (Int32.of_int v.bits.(0))
+      (Int32.shift_left (Int32.of_int (v.bits.(1) land 1)) 30)
+  | 64 ->
+    Int32.of_int (v.bits.(0) land 0x7fffffff)
+  | _ -> assert false
 
 (* this is 0xffffffff (ocaml >= 3.08 checks for literal overflow) *)
 let ffffffff = (0xffff lsl 16) lor 0xffff
@@ -570,12 +570,12 @@ let of_int32_s i = match Sys.word_size with
 let to_int32_s v =
   if v.length < 32 then invalid_arg "Bitv.to_int32_s";
   match Sys.word_size with
-    | 32 ->
-        Int32.logor (Int32.of_int v.bits.(0))
-                    (Int32.shift_left (Int32.of_int (v.bits.(1) land 3)) 30)
-    | 64 ->
-        Int32.of_int (v.bits.(0) land ffffffff)
-    | _ -> assert false
+  | 32 ->
+    Int32.logor (Int32.of_int v.bits.(0))
+      (Int32.shift_left (Int32.of_int (v.bits.(1) land 3)) 30)
+  | 64 ->
+    Int32.of_int (v.bits.(0) land ffffffff)
+  | _ -> assert false
 
 (* [Int64] *)
 let of_int64_us i = match Sys.word_size with

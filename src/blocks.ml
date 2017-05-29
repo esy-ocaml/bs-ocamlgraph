@@ -18,7 +18,7 @@
 (** Common implementation to persistent and imperative graphs. *)
 
 open Sig
-open Util
+open Ocamlgraph_util
 
 let first_value_for_cpt_vertex = 0
 let cpt_vertex = ref first_value_for_cpt_vertex

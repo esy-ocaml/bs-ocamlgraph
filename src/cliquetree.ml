@@ -99,7 +99,7 @@ module CliqueTree(Gr : Sig.G) = struct
      - clique number.
   *)
   module CliqueTreeV =
-    Util.DataV
+    Ocamlgraph_util.DataV
       (struct type t = CliqueV.t list * CVS.t end)
       (struct
         type t = int

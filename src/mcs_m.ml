@@ -20,7 +20,7 @@
 module MaximalCardinalitySearch = struct
 
   module WeightedV(V : Sig.COMPARABLE) = struct
-    include Util.DataV(struct type t = int end)(V)
+    include Ocamlgraph_util.DataV(struct type t = int end)(V)
     let weight = data
     let set_weight = set_data
   end

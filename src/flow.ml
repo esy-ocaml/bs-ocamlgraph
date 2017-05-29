@@ -38,125 +38,125 @@ module type G_GOLDBERG_TARJAN = sig
 end
 
 module Goldberg_Tarjan
-  (G: G_GOLDBERG_TARJAN)
-  (F: FLOW with type label = G.E.label) =
+    (G: G_GOLDBERG_TARJAN)
+    (F: FLOW with type label = G.E.label) =
 struct
 
   (* This code is a contribution of Guyslain Naves
 
-  Design notes:
-   This is an implementation of the classical Goldberg-Tarjan push-relabel
-   algorithm to compute maximum flow in directed graphs with upper capacities
-   on arcs. Several common optimizations are implemented to make it
-   more efficient than the pseudocode found in most textbooks on algorithms.
+     Design notes:
+     This is an implementation of the classical Goldberg-Tarjan push-relabel
+     algorithm to compute maximum flow in directed graphs with upper capacities
+     on arcs. Several common optimizations are implemented to make it
+     more efficient than the pseudocode found in most textbooks on algorithms.
 
-   About the push-relabel algorithm.
-   --------------------------------------
+     About the push-relabel algorithm.
+     --------------------------------------
 
-   Instead of keeping a valid flow and improving it by iteration (similar to
-   Ford-Fulkerson algorithm and its variants), the push-relabel always keep
-   a preflow and try make it becoe a flow. A preflow is a function on arcs that
-   violates the flow condition:
+     Instead of keeping a valid flow and improving it by iteration (similar to
+     Ford-Fulkerson algorithm and its variants), the push-relabel always keep
+     a preflow and try make it becoe a flow. A preflow is a function on arcs that
+     violates the flow condition:
      "flow that enters = flow that leaves (in every non-terminal vertex)"
-   and replaces it by:
+     and replaces it by:
      " flow that enters >= flow that leaves (in every non-source vertex)"
-   That means that any vertex may have *excessive* flow entering it.
+     That means that any vertex may have *excessive* flow entering it.
 
-   The algorithm proceed by making flow going down. Here down is defined
-   by a *potential*, an integer attached to every vertex. The excess at some
-   vertex can be routed to a successor in the residual graph with lower
-   potential. This is a *push* operation on the corresponding arc.
+     The algorithm proceed by making flow going down. Here down is defined
+     by a *potential*, an integer attached to every vertex. The excess at some
+     vertex can be routed to a successor in the residual graph with lower
+     potential. This is a *push* operation on the corresponding arc.
 
-   Pushing along all arcs leaving a vertex is a *discharge* of this vertex.
+     Pushing along all arcs leaving a vertex is a *discharge* of this vertex.
 
-   If a vertex is excessive, but no successor has lower potential, then we
-   increase the potential to make it slightly higher than at least one
-   of its successor. This is a *relabel* operation of that vertex.
+     If a vertex is excessive, but no successor has lower potential, then we
+     increase the potential to make it slightly higher than at least one
+     of its successor. This is a *relabel* operation of that vertex.
 
-   The source (potential = n) and sink (potential = 0) may never be relabel.
+     The source (potential = n) and sink (potential = 0) may never be relabel.
 
-   The algorithm consists in doing push and relabel steps,
-   until no more are possible. Then the preflow is a maximum flow.
+     The algorithm consists in doing push and relabel steps,
+     until no more are possible. Then the preflow is a maximum flow.
 
-   Optimizations.
-   --------------
+     Optimizations.
+     --------------
 
-   - The simplest (and less efficient) way to optimize this algorithm is
-   to play with the order on which push and relabel operations are performed.
-   Here, the strategy used is the following:
-   1) sort excessive vertices by decreasing potential
-   2) for each vertex in that order:
+     - The simplest (and less efficient) way to optimize this algorithm is
+     to play with the order on which push and relabel operations are performed.
+     Here, the strategy used is the following:
+     1) sort excessive vertices by decreasing potential
+     2) for each vertex in that order:
       a) discharge it
       b) if still in excess, relabel it
-   (see [augmenting_step] and [discharge])
-   This is a basic strategy that could be improved.
+     (see [augmenting_step] and [discharge])
+     This is a basic strategy that could be improved.
 
-   - Textbook algorithms starts with non-source vertices with potential 0.
-   This forces the algorithm to perform a lot of relabel operations to get
-   to a more realistic and usable potential function. Here we use as initial
-   potential the distance from a vertex to the sink (even for the source).
-   (see [initialize_potential])
+     - Textbook algorithms starts with non-source vertices with potential 0.
+     This forces the algorithm to perform a lot of relabel operations to get
+     to a more realistic and usable potential function. Here we use as initial
+     potential the distance from a vertex to the sink (even for the source).
+     (see [initialize_potential])
 
-   - The most important optimization: empirically one can check that the
-   push-relabel algorithm converges very quickly toward a preflow that maximizes
-   the flow sent to the sink. But then it takes very long to send back the
-   excessive flow to the source.  Here we detect every few iterations if the
-   preflow is maximal. This is done by a bfs in the reversal of the residual
-   graph, by determining whether the source is reachable.
-   (see [is_maximum_preflow]).
-   Once the preflow is maximum (first pahse), we compute a maximum preflow from
-   sink to source in the reversed graph, with maximum capacities given by the
-   values of the maximum preflow just computed (second phase). This will
-   compute a reversed maximum preflow that must be actually a flow.
-   (see [compute_maximum_flow], and the use of [forward_context]
-   and [backward_context] for each of the two phases)
-
-
-   Implementation.
-   ---------------
-
-   The most important thing is to understand that we are interested only
-   in the residual graph, and not by the original graph. Original arcs
-   may appears in one or two directions in the residual graph. This is
-   why we manipulate almost only [residual_arc] and no [arc = G.E.t].
-
-   It also implies that the incident arcs of a vertex are not those in
-   the original graph. Because we will work with both the residual graph
-   and its reversal, and that it depends on the current flow values, we
-   define two functions [incidence_residual] and [incidence_reversal].
-   Notice that their roles interchanged during the second phase.
-
-   [Forward] and [Backward] only refers to the orientation compared to the
-   orientation in the graph. Hence, in a reversed graph, backward residual arcs
-   are [Forward], and forward residual arcs are [Backward].
-
-   We define a type [context] containing the current state of computation.
-   We hide the data structures in [context] by providing [set] and [get]
-   functions. It makes the code more readable, and easier to modify if one
-   would like to change the data structures.
+     - The most important optimization: empirically one can check that the
+     push-relabel algorithm converges very quickly toward a preflow that maximizes
+     the flow sent to the sink. But then it takes very long to send back the
+     excessive flow to the source.  Here we detect every few iterations if the
+     preflow is maximal. This is done by a bfs in the reversal of the residual
+     graph, by determining whether the source is reachable.
+     (see [is_maximum_preflow]).
+     Once the preflow is maximum (first pahse), we compute a maximum preflow from
+     sink to source in the reversed graph, with maximum capacities given by the
+     values of the maximum preflow just computed (second phase). This will
+     compute a reversed maximum preflow that must be actually a flow.
+     (see [compute_maximum_flow], and the use of [forward_context]
+     and [backward_context] for each of the two phases)
 
 
-   Structure of the code:
-   The first part of the code contains mostly helpers, up to the bfs algorithm.
-   With the bfs comes the function to compute the initial potential and
-   check the maximality of a preflow.
-   Then we define the push, relabel, discharge operations, and the functions
-   computing maximal preflows.
-   Finally we define how to initialize a context, and the max flow algorithm.
+     Implementation.
+     ---------------
 
-   We choose to require by a functor the implementations for the main data
-   structures used by the algorithm. VMap and EMap could be replaced by
-   arrays for better efficiency, or using vertex and edge labels.
-   They are used to record potentials, excesses and flows.
-   VSet is used to track vertices that are still in excess. Because
-   we sort those vertices, using search trees would not be a problem,
-   but an array of size [G.nb_vertex] could degrade the performance.
-   The default is a hash table densely filled, hence [sort_by_potential]
-   is the asymptotical bottleneck.
+     The most important thing is to understand that we are interested only
+     in the residual graph, and not by the original graph. Original arcs
+     may appears in one or two directions in the residual graph. This is
+     why we manipulate almost only [residual_arc] and no [arc = G.E.t].
 
-   Parameter:
-   - [param_freq_check_preflow]: used to parametrized how often one should check
-   whether the current preflow is maximum.
+     It also implies that the incident arcs of a vertex are not those in
+     the original graph. Because we will work with both the residual graph
+     and its reversal, and that it depends on the current flow values, we
+     define two functions [incidence_residual] and [incidence_reversal].
+     Notice that their roles interchanged during the second phase.
+
+     [Forward] and [Backward] only refers to the orientation compared to the
+     orientation in the graph. Hence, in a reversed graph, backward residual arcs
+     are [Forward], and forward residual arcs are [Backward].
+
+     We define a type [context] containing the current state of computation.
+     We hide the data structures in [context] by providing [set] and [get]
+     functions. It makes the code more readable, and easier to modify if one
+     would like to change the data structures.
+
+
+     Structure of the code:
+     The first part of the code contains mostly helpers, up to the bfs algorithm.
+     With the bfs comes the function to compute the initial potential and
+     check the maximality of a preflow.
+     Then we define the push, relabel, discharge operations, and the functions
+     computing maximal preflows.
+     Finally we define how to initialize a context, and the max flow algorithm.
+
+     We choose to require by a functor the implementations for the main data
+     structures used by the algorithm. VMap and EMap could be replaced by
+     arrays for better efficiency, or using vertex and edge labels.
+     They are used to record potentials, excesses and flows.
+     VSet is used to track vertices that are still in excess. Because
+     we sort those vertices, using search trees would not be a problem,
+     but an array of size [G.nb_vertex] could degrade the performance.
+     The default is a hash table densely filled, hence [sort_by_potential]
+     is the asymptotical bottleneck.
+
+     Parameter:
+     - [param_freq_check_preflow]: used to parametrized how often one should check
+     whether the current preflow is maximum.
 
   *)
 
@@ -207,8 +207,8 @@ struct
   let max_capacity e = F.max_capacity (E.label e)
 
   type residual_arc =
-  | Forward of arc
-  | Backward of arc
+    | Forward of arc
+    | Backward of arc
 
   (* context for computations *)
   type context =
@@ -271,10 +271,10 @@ struct
 
   let residual_capacity : context -> residual_arc -> flow =
     fun context residual_arc -> match context.reversed, residual_arc with
-    | true, Forward arc
-    | false, Backward arc -> get_flow context arc
-    | _, Backward arc
-    | _, Forward arc -> F.sub (context.max_capacity arc) (get_flow context arc)
+      | true, Forward arc
+      | false, Backward arc -> get_flow context arc
+      | _, Backward arc
+      | _, Forward arc -> F.sub (context.max_capacity arc) (get_flow context arc)
 
   let is_forward context arc =
     is_positive (context.max_capacity arc -- get_flow context arc)
@@ -284,12 +284,12 @@ struct
 
   let augment : context -> residual_arc -> F.t -> unit =
     fun context residual_arc delta -> match context.reversed, residual_arc with
-    | true, Backward arc
-    | false, Forward arc ->
-      get_flow context arc +- delta |> set_flow context arc
-    | _, Backward arc
-    | _, Forward arc ->
-      get_flow context arc -- delta |> set_flow context arc
+      | true, Backward arc
+      | false, Forward arc ->
+        get_flow context arc +- delta |> set_flow context arc
+      | _, Backward arc
+      | _, Forward arc ->
+        get_flow context arc -- delta |> set_flow context arc
 
   let cons e l = e::l
 
@@ -323,28 +323,28 @@ struct
   (* Breadth-first search algorithm, with application of
    * a function on each arc of the BFS tree. *)
   let generic_bfs :
-      int ->
-      (vertex -> residual_arc list) ->
-      (residual_arc -> unit) ->
-      vertex -> unit
+    int ->
+    (vertex -> residual_arc list) ->
+    (residual_arc -> unit) ->
+    vertex -> unit
     =
     fun nb_vertices incidence iter_fun source ->
       let reached = VMap.create nb_vertices in
       let frontier = ref Q.empty in
       let add_arc arc =
-	let dest = destination arc in
-	if VMap.find reached dest = None then
-	  ( VMap.add reached dest ();
-	    iter_fun arc;
-	    frontier := Q.add !frontier dest
-	  )
+        let dest = destination arc in
+        if VMap.find reached dest = None then
+          ( VMap.add reached dest ();
+            iter_fun arc;
+            frontier := Q.add !frontier dest
+          )
       in
       let explore vertex = List.iter add_arc (incidence vertex) in
       VMap.add reached source ();
       explore source;
       while not (Q.is_empty !frontier) do
-	explore (Q.head !frontier);
-	frontier := Q.tail !frontier
+        explore (Q.head !frontier);
+        frontier := Q.tail !frontier
       done
 
   (* labels the vertices by their distance to the sink.
@@ -369,14 +369,14 @@ struct
   let is_maximum_preflow context =
     let check_arc arc =
       if F.compare (get_excess context (destination arc)) F.zero <> 0 then
-	raise Break
+        raise Break
     in
     try
       generic_bfs
-	context.nb_vertices
-	(context.reverse_incident context)
-	check_arc
-	context.sink;
+        context.nb_vertices
+        (context.reverse_incident context)
+        check_arc
+        context.sink;
       true
     with Break -> false
 
@@ -388,12 +388,12 @@ struct
     let exc_u = get_excess context u in
     if is_positive exc_u then
       begin
-	let delta = min_flow exc_u (residual_capacity context arc) in
-	exc_u -- delta |> set_excess context u;
-	get_excess context v +- delta |> set_excess context v;
-	augment context arc delta;
-	mark_excessive context v
-    end
+        let delta = min_flow exc_u (residual_capacity context arc) in
+        exc_u -- delta |> set_excess context u;
+        get_excess context v +- delta |> set_excess context v;
+        augment context arc delta;
+        mark_excessive context v
+      end
 
   (* Augment potential of a vertex to get a lower-potential successor *)
   let relabel context vertex =
@@ -413,11 +413,11 @@ struct
     |> List.filter (is_admissible context)
     |> List.iter (push context)
     |> fun () ->
-      if is_positive (get_excess context vertex) then
-	begin
-	  relabel context vertex;
-	  mark_excessive context vertex
-	end
+    if is_positive (get_excess context vertex) then
+      begin
+        relabel context vertex;
+        mark_excessive context vertex
+      end
 
   (* Optimization: push vertices ordered by their potential.
      (better strategies may be possible). *)
@@ -426,7 +426,7 @@ struct
   let sort_by_potential context = List.sort (compare_potential context)
 
   let is_dischargeable context v =
-        v <> context.source
+    v <> context.source
     && v <> context.sink
     && is_positive (get_excess context v)
 
@@ -465,21 +465,21 @@ struct
     |> set_excess context context.source;
     out_source
     |> List.iter (push context);
-   context
+    context
 
   let new_context graph ~source ~sink ~reversed ~max_capacity ~flow =
     let nb_vertices = G.nb_vertex graph in
     init_context
       { nb_vertices; source; sink; reversed; max_capacity; flow;
-	incident =
-	  if reversed then incidence_reversal graph
-	  else incidence_residual graph;
-	reverse_incident =
-	  if reversed then incidence_residual graph
-	  else incidence_reversal graph;
-	excess = VMap.create nb_vertices;
-	potential = VMap.create nb_vertices;
-	excessives = VSet.create ();
+        incident =
+          if reversed then incidence_reversal graph
+          else incidence_residual graph;
+        reverse_incident =
+          if reversed then incidence_residual graph
+          else incidence_reversal graph;
+        excess = VMap.create nb_vertices;
+        potential = VMap.create nb_vertices;
+        excessives = VSet.create ();
       }
 
   let maxflow graph source sink =
@@ -490,18 +490,18 @@ struct
     in
     let forward_context =
       new_context graph ~source ~sink
-	~reversed:false
-	~max_capacity
-	~flow:(init_flow ())
+        ~reversed:false
+        ~max_capacity
+        ~flow:(init_flow ())
     in
     compute_max_preflow forward_context;
     let backward_context =
       new_context graph
-	~source:sink
-	~sink:source
-	~reversed:true
-	~max_capacity:(get_flow forward_context)
-	~flow:(init_flow ())
+        ~source:sink
+        ~sink:source
+        ~reversed:true
+        ~max_capacity:(get_flow forward_context)
+        ~flow:(init_flow ())
     in
     compute_max_preflow backward_context;
     let max_flow_value =
@@ -585,7 +585,7 @@ struct
         (struct
           open G
           type t = E.t
-          module U = Util.HTProduct(V)(V)
+          module U = Ocamlgraph_util.HTProduct(V)(V)
           let equal e1 e2 = U.equal (E.src e1, E.dst e1) (E.src e2, E.dst e2)
           let hash e = U.hash (E.src e, E.dst e)
         end)
